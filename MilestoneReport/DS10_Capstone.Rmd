@@ -1,0 +1,319 @@
+---
+title: "Coursera Data Science Capstone Milestone Report"
+author: "C. Ou"
+date: "Sunday, March 20, 2016"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+#Synopsis
+
+The goal of this milestone report is just to show how to work with the data and how to create the prediction algorithm of the **Coursera Capstone Project**. The detailed information regarding the project, please see <https://www.coursera.org/learn/data-science-project>.
+
+The main purpose for this report is to: 
+
+1. Demonstrate how to downloaded the data and have successfully loaded it in.
+
+2. Create a basic report of summary statistics about the data sets using the R Markdown and submit the report on R Pubs <http://rpubs.com/>.
+
+3. Report any interesting findings.
+
+4. Get feedback on my plans for the Capstone Project.
+
+
+
+#Basic Settings and Loading R Libraries as Required
+The following R libraries are utilized for this analysis
+
+
+```{r,results='hide', message=FALSE, warning=FALSE}
+library(knitr)
+opts_chunk$set(echo = TRUE, cache=TRUE, eval = TRUE, results = 'hold')
+options(scipen = 1)
+setwd("D:/DS10_Capstone_Project/")
+suppressMessages(library(knitr, warn.conflicts = FALSE, quietly=TRUE)) 
+suppressMessages(library(stringi, warn.conflicts = FALSE, quietly=TRUE))
+suppressMessages(library(ggplot2, warn.conflicts = FALSE, quietly=TRUE))
+suppressMessages(library(gridExtra,warn.conflicts = FALSE, quietly=TRUE))
+suppressMessages(library(tm, warn.conflicts = FALSE, quietly=TRUE))
+suppressMessages(library(wordcloud, warn.conflicts = FALSE, quietly=TRUE))
+suppressMessages(library(SnowballC, warn.conflicts = FALSE, quietly=TRUE))
+library(stringi)
+library(ggplot2)
+library(gridExtra)
+library(tm)
+library(wordcloud)
+library(R.utils)
+library(rJava) 
+library(RWeka)
+library(SnowballC)
+
+```
+
+#Download and Unzip Coursera-SwiftKey Data
+
+The Coursera-SwiftKey data has been download from this address: <https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip>, and uncompressed for further analysis.
+
+```{r,results='hide', message=FALSE, warning=FALSE}
+swiftUrl  <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+swiftFile <- "SwiftKey.zip"
+if(file.exists(swiftFile)){
+  ##Please uncomment the following codes if you want to download the data again
+  #file.remove(swiftFile)  
+}else
+{
+  download.file(swiftUrl, swiftFile)
+  unzip(swiftFile)
+}
+
+```
+
+#Load Data and Analyze the File Sizes
+
+Utilize readLines functionality to load only the english corpora in UTF-8 endoding. Obtain the file sizes and R object sizes for the downloaded data sets.
+
+```{r, message=FALSE, warning=FALSE}
+fileName_twitter="final/en_US/en_US.twitter.txt"
+fileName_news="final/en_US/en_US.news.txt"
+fileName_blogs="final/en_US/en_US.blogs.txt"
+data_twitter.raw <- readLines(fileName_twitter, encoding = "UTF-8")
+data_news.raw <- readLines(fileName_news, encoding = "UTF-8")
+data_blogs.raw <- readLines(fileName_blogs, encoding = "UTF-8")
+data.raw <- c(data_twitter.raw, data_news.raw, data_blogs.raw)
+
+knit_print.data.frame = function(x, ...) {
+  res = paste(c("", "", kable(x)), collapse = "\n")
+  asis_output(res)
+}
+
+##obtain file sizes
+fileSize_blogs=round(file.info(fileName_blogs)$size/(1024^2),1)
+fileSize_news=round(file.info(fileName_news)$size/(1024^2),1)
+fileSize_twitter=round(file.info(fileName_twitter)$size/(1024^2),1)
+fileSize=cbind(fileSize_blogs,fileSize_news,fileSize_twitter)
+rownames(fileSize) <- c("File Sizes(mb)")
+objFileSize_blogs<-round(object.size(data_blogs.raw )/(1024^2),1)
+objFileSize_news<-round(object.size(data_news.raw )/(1024^2),1)
+objFileSize_twitter<-round(object.size(data_twitter.raw )/(1024^2),1)
+objFileSize<-cbind(objFileSize_blogs,objFileSize_news,objFileSize_twitter)
+rownames(objFileSize) <- c("R object Sizes(mb)")
+allFileSize<-rbind(fileSize,objFileSize)
+colnames(allFileSize)<-c("Blogs","News","Tweets")
+head(format(as.data.frame(allFileSize),big.mark=",",scientific=F))
+
+```
+
+#Basic Statistics
+
+General statistics of the files.
+
+```{r}
+stats_blogs<-as.data.frame(stri_stats_general(data_blogs.raw))
+stats_news<-as.data.frame(stri_stats_general(data_news.raw))
+stats_twitter<-as.data.frame(stri_stats_general(data_twitter.raw))
+stats<-cbind(stats_blogs,stats_news,stats_twitter)
+colnames(stats)<-c("Blogs","News","Tweets")
+head(format(as.data.frame(stats),big.mark=",",scientific=F))
+```
+  
+Distribution of words for per line.
+
+```{r}
+wordCount_blogs<-stri_count_words(data_blogs.raw)
+wordCount_news<-stri_count_words(data_news.raw)
+wordCount_twitter<-stri_count_words(data_twitter.raw)
+summary_blogs<-summary(wordCount_blogs)
+summary_news<-summary(wordCount_news)
+summary_twitter<-summary(wordCount_twitter)
+summary<-cbind(summary_blogs,summary_news,summary_twitter)
+colnames(summary)<-c("Blogs","News","Tweets")
+head(format(as.data.frame(summary),big.mark=",",scientific=F))
+
+```
+
+Histograms of Word frequency for each dataset. 
+
+```{r}
+
+plot_blogs<-qplot(wordCount_blogs, geom="histogram",binwidth = 60) 
+plot_blogs<-plot_blogs + xlab("Blogs") + ylab("Word Count")
+plot_news<-qplot(wordCount_news, geom="histogram",binwidth = 20)
+plot_news<-plot_news + xlab("News") + ylab("Word Count")
+plot_twitter<-qplot(wordCount_twitter, geom="histogram",binwidth = 1)
+plot_twitter<-plot_twitter + xlab("Tweets") + ylab("Word Count")
+grid.arrange(plot_blogs,plot_news,plot_twitter, ncol=3)
+```
+
+Cleaned up Corpus for 10% sample data.
+
+```{r}
+sample_blogs   <- sample(data_blogs.raw, round(length(data_blogs.raw)*0.1), replace=FALSE)
+sample_news    <- sample(data_news.raw, round(length(data_news.raw)*0.1), replace=FALSE)
+sample_twitter  <- sample(data_twitter.raw, round(length(data_twitter.raw)*0.1), replace=FALSE)
+sample_all <- c(sample_blogs,sample_news,sample_twitter)
+```
+
+Save and load the sample data for further analysis
+
+```{r}
+save(sample_all,file="sample_all.RData")
+load("sample_all.RData") 
+```
+
+The profanity words from Google is downloaded from <http://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/> and stored in "D:/DS10_Capstone_Project/bad-words/bad-words.txt".
+```{r}
+bad_words <- read.csv("D:/DS10_Capstone_Project/bad-words/bad-words.txt")
+bad_words <- as.vector(t(bad_words))
+
+sample_all <- iconv(sample_all, "latin1", "ASCII", sub="")
+corpus <- Corpus(VectorSource(list(sample_all)))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, content_transformer(removePunctuation))
+corpus <- tm_map(corpus, content_transformer(removeNumbers))
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, removeWords, bad_words)
+corpus <- tm_map(corpus, stemDocument, language='english')
+
+```
+
+#Word Frequency Analysis (N-Gram)
+
+##Building the Term Document Matrix and Tokenizing cleanset into Unigrams, Bigrams and Trigrams
+
+```{r}
+
+tokenizer_uniGram <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+tokenizer_biGram <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tokenizer_triGram <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+
+matrix_uniGram <- TermDocumentMatrix(corpus, control = list(tokenize = tokenizer_uniGram))
+matrix_biGram <- TermDocumentMatrix(corpus, control = list(tokenize = tokenizer_biGram))
+matrix_triGram <- TermDocumentMatrix(corpus, control = list(tokenize = tokenizer_triGram))
+
+```
+
+
+##1.Bar plot showing frequency of words occuring in Unigram
+
+```{r}
+freqTerms <- findFreqTerms(matrix_uniGram, lowfreq = 10000)
+termFrequency <- rowSums(as.matrix(matrix_uniGram[freqTerms,]))
+termFrequency <- data.frame(unigram=names(termFrequency), frequency=termFrequency)
+termFrequency[1:30,]
+
+
+plot_uniGramFreq <- ggplot(termFrequency, aes(x=reorder(unigram, frequency), y=frequency)) +
+  geom_bar(stat = "identity", fill = "black") +  coord_flip() +
+  theme(legend.title=element_blank()) +
+  xlab("Unigram") + ylab("Frequency") +
+  labs(title = "Top Unigrams by Frequency")
+print(plot_uniGramFreq)
+
+```
+
+###1.1.How many words we need to cover 50% of the instances in Unigram?
+```{r}
+cumsum_all <- cumsum(termFrequency$frequency)
+limit50 <- sum(termFrequency$frequency)*0.5
+length((cumsum_all[cumsum_all<=  limit50]))
+```
+###1.2.How many word to cover 90% of the instances in Unigram?
+```{r}
+limit90 <- sum(termFrequency$frequency)*0.9
+length((cumsum_all[cumsum_all <=  limit90]))
+```
+
+##2.Bar plot showing frequency of words occuring in Bigram
+
+```{r}
+freqTerms <- findFreqTerms(matrix_biGram, lowfreq = 750)
+termFrequency <- rowSums(as.matrix(matrix_biGram[freqTerms,]))
+termFrequency <- data.frame(bigram=names(termFrequency), frequency=termFrequency)
+termFrequency
+
+plot_biGramFreq <- ggplot(termFrequency, aes(x=reorder(bigram, frequency), y=frequency)) +
+  geom_bar(stat = "identity", fill = "black") +  coord_flip() +
+  theme(legend.title=element_blank()) +
+  xlab("Bigram") + ylab("Frequency") +
+  labs(title = "Top Bigrams by Frequency")
+print(plot_biGramFreq)
+
+```
+
+###2.1.How many words we need to cover 50% of the instances in Bigram?
+```{r}
+cumsum_all <- cumsum(termFrequency$frequency)
+limit50 <- sum(termFrequency$frequency)*0.5
+length((cumsum_all[cumsum_all<=  limit50]))
+
+```
+###2.2.How many word to cover 90% of the instances in Bigram?
+```{r}
+limit90 <- sum(termFrequency$frequency)*0.9
+length((cumsum_all[cumsum_all <=  limit90]))
+```
+
+##3.Bar plot showing frequency of words occuring in Trigram
+
+```{r}
+freqTerms <- findFreqTerms(matrix_triGram, lowfreq = 75)
+termFrequency <- rowSums(as.matrix(matrix_triGram[freqTerms,]))
+termFrequency <- data.frame(trigram=names(termFrequency), frequency=termFrequency)
+termFrequency
+
+plot_triGramFreq <- ggplot(termFrequency, aes(x=reorder(trigram, frequency), y=frequency)) +
+  geom_bar(stat = "identity", fill = "black") +  coord_flip() +
+  theme(legend.title=element_blank()) +
+  xlab("Trigram") + ylab("Frequency") +
+  labs(title = "Top Trigrams by Frequency")
+print(plot_triGramFreq)
+```
+
+###3.1.How many words we need to cover 50% of the instances in Trigram?
+```{r}
+cumsum_all <- cumsum(termFrequency$frequency)
+limit50 <- sum(termFrequency$frequency)*0.5
+length((cumsum_all[cumsum_all<=  limit50]))
+```
+###3.2.How many word to cover 90% of the instances in Trigram?
+```{r}
+limit90 <- sum(termFrequency$frequency)*0.9
+length((cumsum_all[cumsum_all <=  limit90]))
+```
+
+
+#Key Findings
+
+Some of key findings regarding the data exporatory of the Coursera-SwiftKey data:
+
+1. The line size differ dramatically between blogs/news and twitter data, though file sizes are comparable.
+
+2. It is memory-cosuming and time-comsuming jobs regarding loading and exporing the datasets. 
+
+
+
+
+#Feedback and Next Step
+
+
+The biggest chanllenge is that the computer memory and time costs. To be frankedly, it is too long time to wait for the running results.
+
+
+Next step, I will try to impove it and build the N-Gram model which N is larger than 3.
+
+
+
+
+
+------------The End---------------Thank you for reviewing-----------------------
+
+
+
+
+
+
+
+
