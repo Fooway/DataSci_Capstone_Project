@@ -3,14 +3,28 @@ Word Prediction System of Capstone Project
 author: C. Ou
 date: 2016-04-18
 
-Objectives and Data Preparation
+About Word Prediction System
 ========================================================
 
-.  Build a shiny application that is able to predict the next word. 
+.  Main purpose is to build a shiny application that is able to predict the next word. 
 
-.  Aggregate term frequency matrices from 2-Grams to 10-Grams 
+.  More detailed about the App, please see:
+[https://fooway.shinyapps.io/DataSci_Capstone_Project](https://fooway.shinyapps.io/DataSci_Capstone_Project)
 
-.  Transfer them into frequency dictionaries
+.  The whole codes of this application can be found in this GitHub repo: [https://github.com/Fooway/DataSci_Capstone_Project.git](https://github.com/Fooway/DataSci_Capstone_Project.git)
+
+.  Learn more about the Coursera Data Science Specialization: [https://www.coursera.org/specialization/jhudatascience/1](https://www.coursera.org/specialization/jhudatascience/1)
+
+
+
+Usage of Word Prediction System
+========================================================
+
+Main Interface; More See **User Guide** and **About**.
+![Application Screenshot](about/app-screenshot-userguide.png)
+
+Simply input you words, and display the next words.
+
 
 
 Database Design of SQLite
@@ -29,23 +43,12 @@ Database Design of SQLite
 Prediction of Stupid Backoff Method
 ========================================================
 
-.  Word prediction of N-Grams and Stupid Backoff method was proposed by Brants et al (2007)
+.  Aggregate term frequency matrices from 2-Grams to 10-Grams 
 
-.  Searching the word frequency dictionary database from higher gram to lower gram
+.  Transfer them into frequency dictionaries
 
-.  Stopped if the matched words; Otherwise, back off to lower gram 
+.  Predict Word of N-Grams and Stupid Backoff method was proposed by Brants et al (2007)
 
- 
+.  Search the word frequency dictionary database from higher gram to lower gram
 
-
-Further Resources
-========================================================
-
-.  The Word Prediction System is hosted on shinyapps.io: [https://fooway.shinyapps.io/DataSci_Capstone_Project](https://fooway.shinyapps.io/DataSci_Capstone_Project)
-
-
-.  The whole code of this application, as well as all the milestone report, related scripts, this presentation  etc. can be found in this GitHub repo: [https://github.com/Fooway/DataSci_Capstone_Project.git](https://github.com/Fooway/DataSci_Capstone_Project.git)
-
-.  Learn more about the Coursera Data Science Specialization: [https://www.coursera.org/specialization/jhudatascience/1](https://www.coursera.org/specialization/jhudatascience/1)
-
-
+.  Stop if the matched words; Otherwise, back off to lower gram 
