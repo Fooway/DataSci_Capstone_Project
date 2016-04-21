@@ -4,7 +4,7 @@
 ******
 This application of Word Prediction System is the capstone project for the Coursera Data Science specialization held by professors of the Johns Hopkins University and in cooperation with SwiftKey. The detailed information regarding the capstone project, please see <https://www.coursera.org/learn/data-science-project>.
 
-![Coursera Logo](logo-jhu.png)     ![SwiftKey Logo](swiftkey.png)
+![Coursera Logo](./ShinyApp/about/logo-jhu.png)     ![SwiftKey Logo](./ShinyApp/about/swiftkey.png)
 
 
 ******
